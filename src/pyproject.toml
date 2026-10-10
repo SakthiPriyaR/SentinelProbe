@@ -1,0 +1,48 @@
+[tool.poetry]
+name = "sentinelprobe"
+version = "0.1.0"
+description = "API and LLM security scanner: automated OpenAPI vulnerability testing plus garak-powered LLM probing"
+authors = ["Your Name <you@example.com>", "Dhrumil Mistry <dhrumil.mistry@owasp.org>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+aiohttp = ">=3.8.4"
+pyyaml = ">=6.0"
+fastapi = {version = ">=0.115.2", optional = true}
+uvicorn = {extras = ["standard"], version = ">=0.23.2", optional = true}
+rq = {version = ">=1.15.1", optional = true}
+redis = {version = ">=5.0.0", optional = true}
+python-dotenv = {version = ">=1.0.0", optional = true}
+rich = ">=13.7.0"
+aiolimiter = ">=1.1.0"
+openapi-spec-validator = ">=0.7.1"
+setuptools = ">=69.0.3"
+tenacity = ">=8.2.3"
+requests = ">=2.31.0"
+
+[tool.poetry.extras]
+api = ["fastapi", "uvicorn", "redis", "rq", "python-dotenv"]
+
+[tool.poetry.urls]
+"Home" = "https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe"
+"Bug Tracker" = "https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe/issues"
+
+
+[tool.poetry.scripts]
+sentinelprobe = "sentinelprobe.__main__:start"
+sentinelprobe-api = "sentinelprobe.api.__main__:start"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.1.1"
+
+[tool.pytest.ini_options]
+testpaths = [
+    "sentinelprobe/tests",
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

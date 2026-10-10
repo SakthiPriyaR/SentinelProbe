@@ -1,0 +1,5 @@
+FROM YOUR-DOCKERHUB-USERNAME/sentinelprobe-base:dev
+
+EXPOSE 8000
+
+ENTRYPOINT [ "python", "-m", "sentinelprobe.api" ]

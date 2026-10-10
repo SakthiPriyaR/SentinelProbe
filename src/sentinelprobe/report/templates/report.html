@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentinelProbe - Security Operations Center</title>
+    <!-- Bootstrap 5.3 & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-base: #0a0e17;
+            --bg-surface: #111827;
+            --bg-card: #162032;
+            --border-color: #22324e;
+            --text-primary: #f3f4f6;
+            --text-secondary: #94a3b8;
+            --accent-cyan: #06b6d4;
+            --accent-blue: #3b82f6;
+            --accent-danger: #ef4444;
+            --accent-warning: #f59e0b;
+            --accent-success: #10b981;
+            --accent-purple: #8b5cf6;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        code, pre, .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Glassmorphism & Borders */
+        .glass-panel {
+            background: rgba(22, 32, 50, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+        }
+
+        .navbar-cyber {
+            background: rgba(17, 24, 39, 0.9);
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(16px);
+        }
+
+        .stat-card {
+            background: linear-gradient(145deg, #162032, #101827);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.25rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        .badge-method {
+            font-weight: 700;
+            font-size: 0.75rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+        }
+        .method-GET { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
+        .method-POST { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+        .method-PUT { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+        .method-DELETE { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+        .method-PATCH { background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid #8b5cf6; }
+
+        .list-item-endpoint {
+            background: transparent;
+            border-left: 3px solid transparent;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.85rem 1rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .list-item-endpoint:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .list-item-endpoint.active {
+            background: rgba(6, 182, 212, 0.12) !important;
+            border-left: 3px solid var(--accent-cyan);
+        }
+        .list-item-endpoint.is-vulnerable {
+            border-left-color: var(--accent-danger);
+        }
+        .list-item-endpoint.is-passed {
+            border-left-color: var(--accent-success);
+        }
+
+        .code-block {
+            background: #090d16;
+            border: 1px solid #1f293d;
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 0.85rem;
+            max-height: 380px;
+            overflow-y: auto;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .nav-pills .nav-link {
+            color: var(--text-secondary);
+            border-radius: 8px;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+        }
+        .nav-pills .nav-link.active {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+
+        .pulse-indicator {
+            width: 9px;
+            height: 9px;
+            background-color: var(--accent-success);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px var(--accent-success);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .filter-btn {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-cyber sticky-top px-4 py-2">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <span class="fs-4 text-cyan" style="color: var(--accent-cyan);"><i class="bi bi-shield-lock-fill"></i></span>
+                <div>
+                    <span class="fw-bold fs-5 tracking-wide">SENTINEL<span style="color: var(--accent-cyan);">PROBE</span></span>
+                    <span class="badge bg-dark-subtle border border-secondary text-secondary ms-2 text-uppercase font-mono" style="font-size: 0.65rem;">v0.1.0 Security Suite</span>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center gap-2 bg-dark px-3 py-1 rounded-pill border border-secondary border-opacity-25">
+                    <span class="pulse-indicator"></span>
+                    <span class="small text-secondary fw-semibold">Scanner Engine Active</span>
+                </div>
+                <button class="btn btn-sm btn-outline-info" onclick="document.getElementById('importFile').click()">
+                    <i class="bi bi-upload me-1"></i> Import Scan
+                </button>
+                <input type="file" id="importFile" accept=".json,.html" style="display:none;" onchange="handleFileImport(event)">
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newScanModal">
+                    <i class="bi bi-play-circle-fill me-1"></i> New Scan
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4 py-4">
+
+        <!-- Executive Metrics Row -->
+        <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-secondary small fw-bold text-uppercase">Tests Executed</div>
+                            <div class="fs-2 fw-bold mt-1 text-white" id="stat-total-tests">0</div>
+                            <div class="small text-secondary mt-1"><i class="bi bi-check2-circle text-info me-1"></i><span id="stat-endpoints-count">0</span> unique endpoints</div>
+                        </div>
+                        <div class="p-3 rounded-3 bg-info bg-opacity-10 text-info fs-4">
+                            <i class="bi bi-activity"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-secondary small fw-bold text-uppercase">Vulnerabilities Detected</div>
+                            <div class="fs-2 fw-bold mt-1 text-danger" id="stat-vuln-count">0</div>
+                            <div class="small text-danger mt-1"><i class="bi bi-exclamation-triangle-fill me-1"></i><span id="stat-fail-rate">0%</span> Failure Rate</div>
+                        </div>
+                        <div class="p-3 rounded-3 bg-danger bg-opacity-10 text-danger fs-4">
+                            <i class="bi bi-bug-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-secondary small fw-bold text-uppercase">Data Leaks</div>
+                            <div class="fs-2 fw-bold mt-1 text-warning" id="stat-leak-count">0</div>
+                            <div class="small text-warning mt-1"><i class="bi bi-shield-slash me-1"></i>Sensitive info exposure</div>
+                        </div>
+                        <div class="p-3 rounded-3 bg-warning bg-opacity-10 text-warning fs-4">
+                            <i class="bi bi-eye-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-secondary small fw-bold text-uppercase">Security Posture</div>
+                            <div class="fs-2 fw-bold mt-1 text-success" id="stat-pass-rate">100%</div>
+                            <div class="small text-success mt-1"><i class="bi bi-shield-check me-1"></i>Passed security criteria</div>
+                        </div>
+                        <div class="p-3 rounded-3 bg-success bg-opacity-10 text-success fs-4">
+                            <i class="bi bi-patch-check-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-pills mb-4 glass-panel p-2 gap-2" id="dashboardTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-api"><i class="bi bi-globe2 me-2"></i>API Findings & Deep Dive</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-llm"><i class="bi bi-cpu me-2"></i>LLM Probes (Garak / Gemini)</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-charts"><i class="bi bi-pie-chart me-2"></i>Analytics & Breakdown</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-launch"><i class="bi bi-terminal me-2"></i>Scanner Launcher</button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+
+            <!-- TAB 1: API Findings -->
+            <div class="tab-pane fade show active" id="tab-api">
+                <div class="row g-4">
+                    <!-- Endpoint List Column -->
+                    <div class="col-lg-5">
+                        <div class="glass-panel p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="fw-bold mb-0 text-white"><i class="bi bi-list-columns me-2"></i>Endpoint Findings</h6>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary filter-btn active" onclick="filterFindings('all')">All</button>
+                                    <button class="btn btn-outline-danger filter-btn" onclick="filterFindings('vuln')">Vulns Only</button>
+                                    <button class="btn btn-outline-warning filter-btn" onclick="filterFindings('leak')">Leaks</button>
+                                </div>
+                            </div>
+                            <input type="text" id="endpointSearch" class="form-control form-control-sm mb-3 bg-dark border-secondary border-opacity-50 text-white" placeholder="Search path, method, or test name..." onkeyup="filterEndpoints()">
+                            
+                            <div id="endpoint-list-container" class="overflow-y-auto" style="max-height: 650px;">
+                                <!-- Dynamically populated list items -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inspector Column -->
+                    <div class="col-lg-7">
+                        <div class="glass-panel p-4 h-100">
+                            <div id="inspector-placeholder" class="text-center py-5 text-secondary">
+                                <i class="bi bi-cursor-fill fs-1 mb-2 d-block text-secondary opacity-50"></i>
+                                Select an endpoint from the left to inspect vulnerability payload, headers, and response.
+                            </div>
+
+                            <div id="inspector-content" style="display: none;">
+                                <div class="d-flex justify-content-between align-items-start mb-3 border-bottom border-secondary border-opacity-25 pb-3">
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <span id="insp-method" class="badge-method">GET</span>
+                                            <span id="insp-path" class="font-mono fw-bold fs-6 text-white">/api/v1/resource</span>
+                                        </div>
+                                        <div class="small text-secondary font-mono" id="insp-url">https://api.example.com</div>
+                                    </div>
+                                    <div id="insp-status-badge">
+                                        <span class="badge bg-danger fs-6">VULNERABLE</span>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-6">
+                                        <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25">
+                                            <div class="text-secondary small fw-bold">Test Classification</div>
+                                            <div id="insp-test-name" class="fw-semibold text-white mt-1">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25">
+                                            <div class="text-secondary small fw-bold">Injected Payload</div>
+                                            <div id="insp-payload" class="font-mono text-warning mt-1 text-truncate" title="">None</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Result Details / Remediation -->
+                                <div class="mb-4">
+                                    <h6 class="fw-bold text-white small text-uppercase"><i class="bi bi-info-circle me-1"></i> Vulnerability Analysis & Findings</h6>
+                                    <div id="insp-details" class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25 small text-secondary">
+                                        -
+                                    </div>
+                                </div>
+
+                                <!-- Request / Response Tabs -->
+                                <ul class="nav nav-tabs nav-tabs-sm border-secondary border-opacity-25 mb-2" role="tablist">
+                                    <li class="nav-item">
+                                        <button class="nav-link active small text-secondary" data-bs-toggle="tab" data-bs-target="#tab-req">HTTP Request</button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link small text-secondary" data-bs-toggle="tab" data-bs-target="#tab-res">HTTP Response</button>
+                                    </li>
+                                </ul>
+
+                                <div class="tab-content">
+                                    <div class="tab-pane fade show active" id="tab-req">
+                                        <pre id="insp-request-body" class="code-block"></pre>
+                                    </div>
+                                    <div class="tab-pane fade" id="tab-res">
+                                        <pre id="insp-response-body" class="code-block"></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: LLM Probes -->
+            <div class="tab-pane fade" id="tab-llm">
+                <div class="glass-panel p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h5 class="fw-bold text-white mb-1"><i class="bi bi-cpu-fill text-info me-2"></i>LLM Safety & Red-Teaming Results</h5>
+                            <p class="text-secondary small mb-0">Adversarial attacks evaluated via NVIDIA Garak across DAN, jailbreaks, prompt injection, and hallucinations.</p>
+                        </div>
+                        <div class="badge bg-dark border border-secondary p-2 font-mono">
+                            Target: <span id="llm-target-label" class="text-info">Gemini / OpenAI Model</span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover border-secondary border-opacity-25 align-middle">
+                            <thead>
+                                <tr class="text-secondary small text-uppercase">
+                                    <th>Probe Class</th>
+                                    <th>Detector Type</th>
+                                    <th>Pass / Total Attempts</th>
+                                    <th>Vulnerability Rate</th>
+                                    <th>Evaluation Result</th>
+                                    <th>Attack Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="llm-table-body">
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-secondary">
+                                        No LLM scan imported yet. Run <code>sentinelprobe --mode llm</code> or click "New Scan" to evaluate a model!
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Charts & Analytics -->
+            <div class="tab-pane fade" id="tab-charts">
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="glass-panel p-4">
+                            <h6 class="fw-bold text-white mb-3"><i class="bi bi-pie-chart-fill text-cyan me-2"></i>Vulnerability Status Distribution</h6>
+                            <div style="height: 300px;" class="d-flex justify-content-center">
+                                <canvas id="chartStatus"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="glass-panel p-4">
+                            <h6 class="fw-bold text-white mb-3"><i class="bi bi-bar-chart-fill text-warning me-2"></i>Security Checks Evaluated</h6>
+                            <div style="height: 300px;">
+                                <canvas id="chartTypes"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Scanner Launcher -->
+            <div class="tab-pane fade" id="tab-launch">
+                <div class="glass-panel p-4">
+                    <h5 class="fw-bold text-white mb-3"><i class="bi bi-terminal-fill text-success me-2"></i>Live Scanner Generator & Launcher</h5>
+                    <p class="text-secondary small mb-4">Configure your target API or LLM below to generate the exact execution command or launch automated security tests.</p>
+
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25">
+                                <h6 class="fw-bold text-info"><i class="bi bi-globe2 me-2"></i>Target API Specification</h6>
+                                <div class="mb-3 mt-3">
+                                    <label class="form-label small text-secondary">OpenAPI / Swagger Spec URL</label>
+                                    <input type="text" id="targetSpecUrl" class="form-control bg-black text-white border-secondary" value="https://petstore.swagger.io/v2/swagger.json">
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-info" onclick="document.getElementById('targetSpecUrl').value='https://petstore.swagger.io/v2/swagger.json'">Use Petstore Demo</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25">
+                                <h6 class="fw-bold text-warning"><i class="bi bi-cpu me-2"></i>Target LLM Engine</h6>
+                                <div class="mb-3 mt-3">
+                                    <label class="form-label small text-secondary">Provider & Model</label>
+                                    <select id="llmProvider" class="form-select bg-black text-white border-secondary mb-2">
+                                        <option value="litellm/gemini/gemini-1.5-flash">Google Gemini (gemini-1.5-flash)</option>
+                                        <option value="litellm/gemini/gemini-2.0-flash">Google Gemini (gemini-2.0-flash)</option>
+                                        <option value="openai/gpt-4o-mini">OpenAI (gpt-4o-mini)</option>
+                                        <option value="ollama/llama3">Ollama (Local LLaMA 3)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small text-secondary">Probes (comma-separated)</label>
+                                    <input type="text" id="llmProbesInput" class="form-control bg-black text-white border-secondary" value="dan,promptinject">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-3 rounded-3 bg-black border border-secondary border-opacity-50">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small text-secondary fw-bold font-mono">CLI Command to Run:</span>
+                            <button class="btn btn-sm btn-outline-success" onclick="copyCliCommand()"><i class="bi bi-clipboard me-1"></i> Copy</button>
+                        </div>
+                        <code id="cliOutputCode" class="text-success d-block p-2">sentinelprobe -f https://petstore.swagger.io/v2/swagger.json -o report.html -of html</code>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- New Scan Modal -->
+    <div class="modal fade" id="newScanModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-secondary text-white">
+                <div class="modal-header border-secondary border-opacity-25">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Configure Scan</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-secondary small">Choose which scan mode you want to trigger:</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-info text-start p-3" data-bs-dismiss="modal" onclick="switchToTab('tab-launch')">
+                            <div class="fw-bold">🌐 REST API Vulnerability Scan</div>
+                            <small class="text-secondary">Tests SQLi, BOLA, Mass Assignment, Command Injection from OpenAPI spec</small>
+                        </button>
+                        <button class="btn btn-outline-warning text-start p-3" data-bs-dismiss="modal" onclick="switchToTab('tab-launch')">
+                            <div class="fw-bold">🤖 LLM Adversarial Probing (Gemini / OpenAI)</div>
+                            <small class="text-secondary">Tests Prompt Injection, DAN Jailbreaks, System Prompt Leakage via Garak</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Store scan data in state
+        let scanResults = { results };
+        let activeFilter = 'all';
+        let chartStatusInstance = null;
+        let chartTypesInstance = null;
+
+        function updateMetrics(results) {
+            const total = results.length;
+            const vulns = results.filter(r => r.vulnerable === true || r.vulnerable === 'True \u00d7' || r.result === false).length;
+            const leaks = results.filter(r => r.data_leak === true || (typeof r.data_leak === 'string' && r.data_leak.includes('Leak Found'))).length;
+            const passed = total - vulns;
+            const passRate = total > 0 ? Math.round((passed / total) * 100) : 100;
+            const failRate = total > 0 ? Math.round((vulns / total) * 100) : 0;
+            const uniqueEndpoints = new Set(results.map(r => r.endpoint || r.url)).size;
+
+            document.getElementById('stat-total-tests').innerText = total;
+            document.getElementById('stat-endpoints-count').innerText = uniqueEndpoints;
+            document.getElementById('stat-vuln-count').innerText = vulns;
+            document.getElementById('stat-leak-count').innerText = leaks;
+            document.getElementById('stat-fail-rate').innerText = failRate + '%';
+            document.getElementById('stat-pass-rate').innerText = passRate + '%';
+
+            renderCharts(vulns, passed, results);
+        }
+
+        function renderEndpointList(results) {
+            const container = document.getElementById('endpoint-list-container');
+            container.innerHTML = '';
+
+            if (!results || results.length === 0) {
+                container.innerHTML = '<div class="p-4 text-center text-secondary">No endpoints match criteria.</div>';
+                return;
+            }
+
+            results.forEach((item, index) => {
+                const isVuln = item.vulnerable === true || item.vulnerable === 'True \u00d7' || item.result === false;
+                const isLeak = item.data_leak === true || (typeof item.data_leak === 'string' && item.data_leak.includes('Leak Found'));
+                const method = item.method || 'GET';
+                const endpoint = item.endpoint || item.url || '/unknown';
+                const testName = item.test_name || 'Security Check';
+
+                const div = document.createElement('div');
+                div.className = `list-item-endpoint ${isVuln ? 'is-vulnerable' : 'is-passed'} ${index === 0 ? 'active' : ''}`;
+                div.id = `endpoint-row-${index}`;
+                div.onclick = () => selectEndpoint(item, index);
+
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge-method method-${method}">${method}</span>
+                            <span class="font-mono small fw-semibold text-truncate text-white" style="max-width: 200px;">${endpoint}</span>
+                        </div>
+                        <div>
+                            ${isVuln ? '<span class="badge bg-danger">VULN</span>' : '<span class="badge bg-success">PASS</span>'}
+                            ${isLeak ? '<span class="badge bg-warning ms-1 text-dark">LEAK</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="small text-secondary text-truncate">${testName}</div>
+                `;
+                container.appendChild(div);
+            });
+
+            if (results.length > 0) {
+                selectEndpoint(results[0], 0);
+            }
+        }
+
+        function selectEndpoint(item, index) {
+            document.querySelectorAll('.list-item-endpoint').forEach(el => el.classList.remove('active'));
+            const row = document.getElementById(`endpoint-row-${index}`);
+            if (row) row.classList.add('active');
+
+            document.getElementById('inspector-placeholder').style.display = 'none';
+            document.getElementById('inspector-content').style.display = 'block';
+
+            const method = item.method || 'GET';
+            const isVuln = item.vulnerable === true || item.vulnerable === 'True \u00d7' || item.result === false;
+            
+            const badge = document.getElementById('insp-method');
+            badge.className = `badge-method method-${method}`;
+            badge.innerText = method;
+
+            document.getElementById('insp-path').innerText = item.endpoint || item.url || '-';
+            document.getElementById('insp-url').innerText = item.url || '-';
+
+            const statusBadgeContainer = document.getElementById('insp-status-badge');
+            if (isVuln) {
+                statusBadgeContainer.innerHTML = '<span class="badge bg-danger fs-6 px-3 py-2"><i class="bi bi-x-octagon-fill me-1"></i> VULNERABLE</span>';
+            } else {
+                statusBadgeContainer.innerHTML = '<span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-shield-check me-1"></i> SECURE / PASSED</span>';
+            }
+
+            document.getElementById('insp-test-name').innerText = item.test_name || 'Vulnerability Test';
+            document.getElementById('insp-payload').innerText = item.malicious_payload || item.payload || 'No payload injected';
+            document.getElementById('insp-details').innerText = item.result_details || item.vuln_details || (isVuln ? 'Vulnerability detected during parameter fuzzing.' : 'Endpoint behaved as expected; security assertions passed.');
+
+            // Format Request & Response
+            const reqText = item.request_headers ? 
+                `${method} ${item.url}\n\nHeaders:\n${JSON.stringify(item.request_headers, null, 2)}\n\nBody:\n${item.body_params || 'None'}` :
+                (item.curl_command || 'No raw request captured');
+            document.getElementById('insp-request-body').innerText = reqText;
+
+            const resText = item.response_body ? 
+                `HTTP Status: ${item.response_status_code || item.status_code || 200}\n\nHeaders:\n${JSON.stringify(item.response_headers || {}, null, 2)}\n\nBody:\n${item.response_body}` :
+                `Status Code: ${item.response_status_code || item.status_code || 200}\n\n(Response body empty or suppressed)`;
+            document.getElementById('insp-response-body').innerText = resText;
+        }
+
+        function filterFindings(type) {
+            activeFilter = type;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            let filtered = scanResults;
+            if (type === 'vuln') {
+                filtered = scanResults.filter(r => r.vulnerable === true || r.vulnerable === 'True \u00d7' || r.result === false);
+            } else if (type === 'leak') {
+                filtered = scanResults.filter(r => r.data_leak === true || (typeof r.data_leak === 'string' && r.data_leak.includes('Leak Found')));
+            }
+            renderEndpointList(filtered);
+        }
+
+        function filterEndpoints() {
+            const query = document.getElementById('endpointSearch').value.toLowerCase();
+            const filtered = scanResults.filter(r => {
+                const text = `${r.endpoint || ''} ${r.url || ''} ${r.method || ''} ${r.test_name || ''}`.toLowerCase();
+                return text.includes(query);
+            });
+            renderEndpointList(filtered);
+        }
+
+        function renderCharts(vulns, passed, results) {
+            const ctxStatus = document.getElementById('chartStatus');
+            if (ctxStatus) {
+                if (chartStatusInstance) chartStatusInstance.destroy();
+                chartStatusInstance = new Chart(ctxStatus, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Passed', 'Vulnerable'],
+                        datasets: [{
+                            data: [passed, vulns],
+                            backgroundColor: ['#10b981', '#ef4444'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } }
+                    }
+                });
+            }
+
+            const ctxTypes = document.getElementById('chartTypes');
+            if (ctxTypes) {
+                const counts = {};
+                results.forEach(r => {
+                    const name = (r.test_name || 'Other').split(' ')[0];
+                    counts[name] = (counts[name] || 0) + 1;
+                });
+
+                if (chartTypesInstance) chartTypesInstance.destroy();
+                chartTypesInstance = new Chart(ctxTypes, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(counts),
+                        datasets: [{
+                            label: 'Tests Count',
+                            data: Object.values(counts),
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { ticks: { color: '#94a3b8' } },
+                            y: { ticks: { color: '#94a3b8' } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+        }
+
+        function handleFileImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const text = evt.target.result;
+                try {
+                    // Try parsing as JSON first
+                    const data = JSON.parse(text);
+                    const items = Array.isArray(data) ? data : (data.results || []);
+                    loadScanData(items);
+                } catch(err) {
+                    // If HTML, extract { results } script variable
+                    const match = text.match(/const results = (\[.*?\]);/s);
+                    if (match && match[1]) {
+                        try {
+                            const items = JSON.parse(match[1]);
+                            loadScanData(items);
+                            return;
+                        } catch(e2) {}
+                    }
+                    alert('Loaded scan data successfully.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function loadScanData(items) {
+            scanResults = items;
+            updateMetrics(scanResults);
+            renderEndpointList(scanResults);
+        }
+
+        function switchToTab(tabId) {
+            const tabEl = document.querySelector(`button[data-bs-target="#${tabId}"]`);
+            if (tabEl) {
+                const tab = new bootstrap.Tab(tabEl);
+                tab.show();
+            }
+        }
+
+        function copyCliCommand() {
+            const text = document.getElementById('cliOutputCode').innerText;
+            navigator.clipboard.writeText(text);
+            alert('CLI command copied to clipboard!');
+        }
+
+        // Load Petstore scan results if already generated
+        window.addEventListener('DOMContentLoaded', () => {
+            if (scanResults.length > 0) { loadScanData(scanResults); }
+            fetch('test_report.html')
+                .then(r => r.text())
+                .then(html => {
+                    const match = html.match(/const results = (\[.*?\]);/s);
+                    if (match && match[1]) {
+                        try {
+                            const items = JSON.parse(match[1]);
+                            loadScanData(items);
+                        } catch(e) {}
+                    }
+                })
+                .catch(() => {});
+        });
+    </script>
+</body>
+</html>

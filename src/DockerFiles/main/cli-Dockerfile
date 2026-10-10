@@ -1,0 +1,3 @@
+FROM YOUR-DOCKERHUB-USERNAME/sentinelprobe-base:latest
+
+ENTRYPOINT [ "sentinelprobe" ]

@@ -1,0 +1,35 @@
+version: '3'
+services:
+  sentinelprobe-redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - sentinelprobe-network
+
+  sentinelprobe-api:
+    image: YOUR-DOCKERHUB-USERNAME/sentinelprobe-base:latest
+    command: ["python", "-m", "sentinelprobe.api"]
+    ports:
+      - "8000:8000"
+    networks:
+      - sentinelprobe-network
+    environment:
+      - REDIS_HOST=sentinelprobe-redis
+      - REDIS_PORT=6379
+    depends_on:
+      - sentinelprobe-redis  # Wait for sentinelprobe-redis to start before starting this container
+
+  sentinelprobe-api-worker:
+    image: YOUR-DOCKERHUB-USERNAME/sentinelprobe-base:latest
+    command: ["rq", "worker","sentinelprobe_task_queue"]
+    networks:
+      - sentinelprobe-network
+    environment:
+      - REDIS_HOST=sentinelprobe-redis
+      - REDIS_PORT=6379
+    depends_on:
+      - sentinelprobe-redis  # Wait for sentinelprobe-redis to start before starting this container
+
+networks:
+  sentinelprobe-network:

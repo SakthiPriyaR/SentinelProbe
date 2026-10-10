@@ -1,0 +1,5 @@
+FROM YOUR-DOCKERHUB-USERNAME/sentinelprobe-base:latest
+
+WORKDIR /sentinelprobe
+
+ENTRYPOINT [ "rq", "worker", "sentinelprobe_task_queue" ]
