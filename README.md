@@ -104,6 +104,3 @@ sentinelprobe -f swagger_file.json
 
 -   For more usage options read [README.md](https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe/blob/main/src/README.md)
 
-## Credits and License
-
-SentinelProbe is derived from [OWASP OFFAT](https://github.com/OWASP/OFFAT) by Dhrumil Mistry, released under the MIT License. This project is not affiliated with or endorsed by OWASP. See `LICENSE.md` and `NOTICE.md`.
