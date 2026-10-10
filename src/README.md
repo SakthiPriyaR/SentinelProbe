@@ -348,21 +348,7 @@ How results are read: garak detector scores above 0.5 count as a successful atta
 > If you're using Termux or windows, then use `pip` instead of `pip3`.
 > Few features are only for linux os, hence they might not work on windows and require admin priviliges.
 
-### Open In Google Cloud Shell
 
-- Temporary Session
-  [![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe.git&ephemeral=true&show=terminal&cloudshell_print=./DISCLAIMER.md)
-- Perisitent Session
-  [![Open in Cloud Shell](https://gstatic.com/cloudssh/images/open-btn.svg)](https://shell.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe.git&ephemeral=false&show=terminal&cloudshell_print=./DISCLAIMER.md)
-
-## Have any Ideas 💡 or issue
-
-- Create an issue
-- Fork the repo, update script and create a Pull Request
-
-## Contributing
-
-Refer [CONTRIBUTIONS.md](/CONTRIBUTING.md) for contributing to the project.
 
 ## LICENSE
 
