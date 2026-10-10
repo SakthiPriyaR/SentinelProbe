@@ -4,11 +4,7 @@ SentinelProbe is a security scanner for modern API and AI-powered applications. 
 
 ![UnDocumented petstore API endpoint HTTP method results](assets/images/tests/sentinelprobe-v0.5.0.png)
 
-## Demo
 
-[![asciicast](https://asciinema.org/a/9MSwl7UafIVT3iJn13OcvWXeF.svg)](https://asciinema.org/a/9MSwl7UafIVT3iJn13OcvWXeF)
-
-> Note: The columns for 'data_leak' and 'result' in the table represent independent aspects. It's possible for there to be a data leak in the endpoint, yet the result for that endpoint may still be marked as 'Success'. This is because the 'result' column doesn't necessarily reflect the overall test result; it may indicate success even in the presence of a data leak.
 
 ## Security Checks
 
