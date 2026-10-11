@@ -1,3 +1,4 @@
+from rich.console import Console
 from rich.table import Table, Column
 from ...logger import console
 
@@ -78,21 +79,21 @@ class TestResultTable:
 
         # remove keys based on conditions or update their values
         for result in results:
-            if result['vulnerable']:
+            if result.get('vulnerable'):
                 result['vulnerable'] = '[bold red]True \u00d7[/bold red]'
             else:
                 result['vulnerable'] = '[bold green]False \u2713[/bold green]'
 
             if not is_leaking_data:
-                del result['response_headers']
-                del result['response_body']
+                result.pop('response_headers', None)
+                result.pop('response_body', None)
 
             if result.get('response_status_code'):
                 result['status_code'] = result.get('response_status_code')
-                del result['response_status_code']
+                result.pop('response_status_code', None)
 
             if result.get('security') or result.get('security') == []:
-                del result['security']
+                result.pop('security', None)
 
             if result.get('data_leak'):
                 result['data_leak'] = '[bold red]Leak Found \u00d7[/bold red]'
@@ -100,10 +101,9 @@ class TestResultTable:
                 result['data_leak'] = '[bold green]No Leak \u2713[/bold green]'
 
             if not isinstance(result.get('malicious_payload'), str):
-                del result['malicious_payload']
+                result.pop('malicious_payload', None)
 
             for key in keys_to_remove:
-                if key in result:
-                    del result[key]
+                result.pop(key, None)
 
         return results

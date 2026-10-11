@@ -4,7 +4,10 @@ import os
 
 def start():
     host = os.environ.get("SENTINELPROBE_HOST", "127.0.0.1")
-    port = int(os.environ.get("SENTINELPROBE_PORT", 8000))
+    try:
+        port = int(os.environ.get("SENTINELPROBE_PORT", 8000))
+    except (ValueError, TypeError):
+        port = 8000
 
     print(f"\n=======================================================")
     print(f" SentinelProbe Web Dashboard & API Server Started")

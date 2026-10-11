@@ -1,11 +1,11 @@
 """
 utils module
 """
+import shlex
 from json import loads as json_load, dumps as json_dumps, JSONDecodeError
-from re import compile as re_compile, match
 from urllib.parse import urlparse, urljoin, quote_plus
 from os.path import isfile
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 from yaml import safe_load, YAMLError
 
 
@@ -21,7 +21,11 @@ def get_package_version():
     Returns:
         String: current package version
     '''
-    return version('sentinelprobe')
+    try:
+        return version('sentinelprobe')
+    except PackageNotFoundError:
+        # running from a source checkout that was never installed
+        return 'unknown'
 
 
 def read_yaml(file_path: str) -> dict:
@@ -114,7 +118,7 @@ def write_json_to_file(json_data: dict, file_path: str):
             logger.info('Completed writing data to file: %s', file_path)
             return True
 
-    except JSONDecodeError:
+    except (TypeError, ValueError):
         logger.error('Invalid JSON data, error while writing to %s file.', file_path)
 
     except Exception as e:
@@ -140,8 +144,10 @@ def str_to_dict(key_values: str) -> dict:
     '''
     new_dict = dict()
     for key_value in key_values.split(','):
+        if ':' not in key_value:
+            continue
         try:
-            key_value_list = key_value.split(':')
+            key_value_list = key_value.split(':', 1)
             key = key_value_list[0].strip()
             value = key_value_list[1].strip()
             new_dict[key] = value
@@ -172,7 +178,9 @@ def headers_list_to_dict(headers_list_list: list[list[str]] | None) -> dict:
 
     for header_list in headers_list_list:
         for header_data in header_list:
-            header_key_value = header_data.split(':')
+            if ':' not in header_data:
+                continue
+            header_key_value = header_data.split(':', 1)
             k = header_key_value[0].strip()
             v = header_key_value[1].strip()
             response_headers_dict[k] = v
@@ -193,10 +201,14 @@ def is_valid_url(url: str) -> bool:
     Raises:
         Any exception occurred during operation
     '''
-    url_regex = re_compile(
-        r'https?:\/\/([a-z.-]|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})+(:\d+)?.*'
-    )
-    return bool(match(url_regex, url))
+    if not isinstance(url, str) or any(c.isspace() or ord(c) < 32 for c in url):
+        return False
+
+    try:
+        parsed = urlparse(url)
+        return parsed.scheme.lower() in ('http', 'https') and bool(parsed.hostname)
+    except ValueError:
+        return False
 
 
 def parse_server_url(url: str) -> tuple:
@@ -214,21 +226,17 @@ def parse_server_url(url: str) -> tuple:
     # TODO: implement url parse security https://docs.python.org/3/library/urllib.parse.html#url-parsing-security
     parsed_url = urlparse(url)
 
-    netloc = parsed_url.netloc
-    port = 443 if parsed_url.scheme == 'https' else 80
-    if ':' in netloc:
-        tokens = netloc.split(':')
-        host = tokens[0]
-        try:
-            port = int(tokens[1])
-        except ValueError:
-            logger.error(
-                'Invalid Port Number: failed to parse port in url. Using port %d according to scheme %s',
-                port,
-                parsed_url.scheme,
-            )
-    else:
-        host = netloc
+    host = parsed_url.hostname or parsed_url.netloc
+    default_port = 443 if parsed_url.scheme == 'https' else 80
+    try:
+        port = parsed_url.port if parsed_url.port is not None else default_port
+    except ValueError:
+        logger.error(
+            'Invalid Port Number: failed to parse port in url. Using port %d according to scheme %s',
+            default_port,
+            parsed_url.scheme,
+        )
+        port = default_port
 
     if parsed_url.scheme not in ['http', 'https']:
         raise ValueError('only http and https schemes are allowed')
@@ -355,15 +363,21 @@ def result_to_curl(result: dict):
     if isinstance(request_headers, dict):
         request_headers.pop('Content-Length', None)
     request_headers_str = (
-        '-H '.join([f'"{hkey}: {hval}" ' for hkey, hval in request_headers.items()])
+        ' '.join([f'-H "{hkey}: {hval}"' for hkey, hval in request_headers.items()])
         if request_headers
         else ''
     )
 
     # generate JSON body params
     body = {bparam.get('name'): bparam.get('value') for bparam in body_params}
-    body_str = f"-d '{json_dumps(body)}'" if body else ''
+    body_str = f"-d {shlex.quote(json_dumps(body))}" if body else ''
 
-    curl_command = f"curl -X {method} \"{url}?{query_param_str}\" {request_headers_str} {body_str}".strip()
+    target_url = f"{url}?{query_param_str}" if query_param_str else f"{url}"
+    curl_parts = [f"curl -X {method}", shlex.quote(target_url)]
+    if request_headers_str:
+        curl_parts.append(request_headers_str)
+    if body_str:
+        curl_parts.append(body_str)
+    curl_command = " ".join(curl_parts).strip()
 
     return curl_command

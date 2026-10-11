@@ -69,12 +69,24 @@ sentinelprobe --mode all -f openapi.json \
 
 How results are read: garak detector scores above 0.5 count as a successful attack, so a probe is marked `VULNERABLE` when at least one attempt succeeded. The raw garak `*.report.jsonl` is always kept, and its path is logged.
 
+## Safety and CI options
+
+| Option | Purpose |
+| --- | --- |
+| `--safe` | only send `GET`, `HEAD` and `OPTIONS` (no state-changing requests) |
+| `--fail-on-vuln` | exit with code `2` when a vulnerability is found, so CI pipelines can fail |
+
+Exit codes: `0` clean, `1` scan could not run (bad file, host down, garak error), `2` vulnerabilities found with `--fail-on-vuln`.
+
+**API server:** `AUTH_SECRET_KEY` must be set (a random one is generated otherwise and cannot be shared with other clients). Direct loopback requests are trusted; anything else must send it in a `SECRET-KEY` header. The `openapi` field accepts a URL or an inline spec, never a server file path, and link-local/cloud-metadata addresses are refused as targets.
+
 ## Roadmap
 
 -   [x] Integrate [NVIDIA garak](https://github.com/NVIDIA/garak) (LLM vulnerability scanner) as an LLM-probing module
 -   [x] CLI option to choose scan mode: `api`, `llm`, or `all`
 -   [ ] One combined report for API and LLM findings (currently two separate reports)
--   [ ] LLM scanning through the REST API server (`sentinelprobe-api`) and the GitHub Action
+-   [x] LLM scanning through the REST API server (`sentinelprobe-api`)
+-   [ ] LLM scanning in the GitHub Action
 
 ## Installation (from Source)
 
@@ -82,7 +94,7 @@ Until SentinelProbe is published on PyPI, install from source:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe.git
+git clone https://github.com/SakthiPriyaR/sentinelprobe.git
 cd sentinelprobe/src
 
 # Install locally
@@ -93,7 +105,7 @@ pip install ".[api]"    # CLI + API server
 Or install directly via pip from Git:
 
 ```bash
-pip install git+https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe.git#subdirectory=src
+pip install git+https://github.com/SakthiPriyaR/sentinelprobe.git#subdirectory=src
 ```
 
 -   Run Tool
@@ -102,5 +114,5 @@ pip install git+https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe.git#subdir
 sentinelprobe -f swagger_file.json
 ```
 
--   For more usage options read [README.md](https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe/blob/main/src/README.md)
+-   For more usage options read [README.md](https://github.com/SakthiPriyaR/sentinelprobe/blob/main/src/README.md)
 

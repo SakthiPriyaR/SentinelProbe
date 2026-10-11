@@ -9,11 +9,26 @@ class TestUrls(unittest.TestCase):
             "https://owasp.org/OFFAT/",
             "http://localhost:8000/test",
             "http://127.0.0.1:8001/url",
+            # upper case / digit-leading / mixed case hosts are valid too
+            "https://API.Example.com/openapi.json",
+            "http://Localhost:8000/x",
+            "https://1host.example.com/x",
+            "HTTPS://example.com",
         ]
         for url in urls:
             self.assertTrue(is_valid_url(url=url), f"Failed to validate url: {url}")
 
     def test_invalid_urls(self):
-        urls = ["owasp", "ftp://example/", "\0\0alkdsjlatest", '" OR 1==1 -- -']
+        urls = [
+            "owasp",
+            "ftp://example/",
+            "\0\0alkdsjlatest",
+            '" OR 1==1 -- -',
+            "/etc/passwd",
+            "file:///etc/passwd",
+            "http://",
+            "https://exa mple.com",
+            "",
+        ]
         for url in urls:
-            assert is_valid_url(url=url) is False
+            assert is_valid_url(url=url) is False, url

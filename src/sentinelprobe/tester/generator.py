@@ -596,7 +596,7 @@ class TestGenerator:
                     'kwargs': kwargs,
                     'vuln_details': {
                         True: 'Endpoint might be vulnerable to BOLA',
-                        False: 'Endpoint might not vulnerable to BOLA',
+                        False: 'Endpoint might not be vulnerable to BOLA',
                     },
                     'success_codes': success_codes,
                     'response_filter': PostTestFiltersEnum.STATUS_CODE_FILTER.name,
@@ -762,8 +762,9 @@ class TestGenerator:
         tests = test_generator_method(*args, **kwargs)
         new_tests = []
 
-        actor1_data = user_data.get('actors', [])[0].get('actor1', {})
-        actor2_data = user_data.get('actors', [])[1].get('actor2', {})
+        actors = user_data.get('actors', [])
+        actor1_data = actors[0].get('actor1', {}) if len(actors) > 0 else {}
+        actor2_data = actors[1].get('actor2', {}) if len(actors) > 1 else {}
 
         if test_for_actor1:
             new_tests += populate_user_data(actor1_data, 'actor1', tests)
@@ -883,7 +884,7 @@ class TestGenerator:
     def xss_html_injection_fuzz_params_test(
         self, openapi_parser: SwaggerParser | OpenAPIv3Parser
     ):
-        '''Performs OS Command injection parameter fuzzing based on the
+        '''Performs XSS/HTML Injection parameter fuzzing based on the
         provided OpenAPIParser instance.
 
         Args:
@@ -910,7 +911,7 @@ class TestGenerator:
                 'response_match_regex': r'<script[^>]*>.*<\/script>',
             },
             {
-                'request_payload': "<img src=x onerror='javascript:confirm(1),>",
+                'request_payload': "<img src=x onerror='javascript:confirm(1)'>",
                 'response_match_regex': r'<img[^>]*>',
             },
         ]

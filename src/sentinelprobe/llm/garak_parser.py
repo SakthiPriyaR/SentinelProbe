@@ -89,8 +89,13 @@ def parse_report(
                 probe = _norm_probe(entry.get('probe'))
                 det_raw = entry.get('detector')
                 key = (probe, _norm_detector(det_raw))
-                total = int(entry.get('total') or 0)
                 passed = int(entry.get('passed') or 0)
+                # garak versions name the total differently (total / total_evaluated)
+                total = int(
+                    entry.get('total')
+                    or entry.get('total_evaluated')
+                    or (passed + int(entry.get('fails') or 0))
+                )
                 cur = evals.setdefault(
                     key, {'passed': 0, 'total': 0, 'detector': det_raw or key[1]}
                 )
@@ -140,7 +145,9 @@ def parse_report(
         raise ValueError(f'no valid JSON entries found in garak report: {report_path}')
 
     # prefer garak's own eval totals; fall back to aggregating attempts
-    source = evals if evals else attempt_agg
+    # (an eval block that reports no totals at all is not trusted)
+    evals_usable = any(v['total'] for v in evals.values())
+    source = evals if evals_usable else attempt_agg
     results = []
     for (probe, det_key), counts in source.items():
         total = counts['total']

@@ -22,7 +22,7 @@ class ResultSummarizer:
             dict: name (str) as key and its associated count (int)
         """
         if filter_errors:
-            results = list(filter(lambda result: result.get('error', False), results))
+            results = list(filter(lambda result: not result.get('error', False), results))
 
         error_count = 0
         data_leak_count = 0

@@ -180,9 +180,9 @@ class PostRunTests:
 
             match match_location:
                 case PostTestFiltersEnum.STATUS_CODE_FILTER.name:
-                    target_data = result.get('response_status_code')
+                    target_data = str(result.get('response_status_code', ''))
                 case PostTestFiltersEnum.HEADER_REGEX_FILTER.name:
-                    target_data = result.get('response_body')
+                    target_data = result.get('response_headers')
                 case _:  # PostTestFiltersEnum.BODY_REGEX_FILTER.name:
                     target_data = result.get('response_body')
 

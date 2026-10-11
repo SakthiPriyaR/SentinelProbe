@@ -175,11 +175,14 @@ def find_report_file(
     )
 
 
-def run_garak(cfg: GarakConfig) -> tuple[Path, str]:
+def run_garak(
+    cfg: GarakConfig, env_overrides: dict[str, str] | None = None
+) -> tuple[Path, str]:
     """Runs garak and returns ``(report_path, captured_stdout)``.
 
-    garak's progress output (stderr) is left attached to the terminal so
-    long scans show progress.
+    stdout and stderr are both captured (the tail is included in the error if
+    garak fails). ``env_overrides`` is added to the child process environment
+    only, so secrets are never placed on the command line.
     """
     if not is_garak_installed():
         raise GarakNotInstalledError(
@@ -198,11 +201,13 @@ def run_garak(cfg: GarakConfig) -> tuple[Path, str]:
         cfg.model_name,
         cfg.probes,
     )
+    env = {**os.environ, **(env_overrides or {})}
     try:
         proc = subprocess.run(  # noqa: S603 - list args, validated, no shell
             cmd,
+            env=env,
             stdout=subprocess.PIPE,
-            stderr=None,
+            stderr=subprocess.PIPE,
             text=True,
             errors='replace',
             timeout=cfg.timeout,
@@ -213,7 +218,9 @@ def run_garak(cfg: GarakConfig) -> tuple[Path, str]:
 
     if proc.returncode != 0:
         tail = '\n'.join((proc.stdout or '').strip().splitlines()[-20:])
-        raise GarakRunError(f'garak exited with code {proc.returncode}.\n{tail}')
+        err_tail = '\n'.join((proc.stderr or '').strip().splitlines()[-20:])
+        output = '\n'.join(filter(None, [tail, err_tail]))
+        raise GarakRunError(f'garak exited with code {proc.returncode}.\n{output}')
 
     return find_report_file(proc.stdout, report_prefix), proc.stdout
 

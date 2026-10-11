@@ -11,7 +11,7 @@ logging.basicConfig(
     format="%(message)s",
     datefmt="[%X]",
     handlers=[
-        RichHandler(console=console, rich_tracebacks=True, tracebacks_show_locals=True)
+        RichHandler(console=console, rich_tracebacks=True, tracebacks_show_locals=False)
     ],
 )
 logger = logging.getLogger("SentinelProbe")

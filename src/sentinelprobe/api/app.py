@@ -1,11 +1,12 @@
 import os
 import platform
+import time
 import uuid
 from textwrap import dedent
 from pathlib import Path
 
 from fastapi import status, Request, Response
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from sentinelprobe.api.config import (
     app,
     task_queue,
@@ -13,13 +14,12 @@ from sentinelprobe.api.config import (
     auth_secret_key,
     executor,
     in_memory_jobs,
+    prune_in_memory_jobs,
 )
 from sentinelprobe.api.jobs import scan_api
 from sentinelprobe.api.schema import CreateScanSchema
+from sentinelprobe.api.security import is_authorized
 from sentinelprobe.logger import logger
-
-
-logger.info("Secret Key: %s", auth_secret_key)
 
 if (
     platform.system() == "Darwin"
@@ -76,27 +76,30 @@ async def api_info():
 
 
 def _run_in_memory_job(job_id: str, scan_data: CreateScanSchema):
+    job = in_memory_jobs[job_id]
     try:
-        in_memory_jobs[job_id]["status"] = "in_progress"
+        job["status"] = "in_progress"
+        job["updated"] = time.time()
         results = scan_api(scan_data)
-        in_memory_jobs[job_id]["status"] = "finished"
-        in_memory_jobs[job_id]["results"] = results
+        job["results"] = results
+        job["status"] = "finished"
     except Exception as exc:
-        logger.error("Job %s failed: %s", job_id, exc)
-        in_memory_jobs[job_id]["status"] = "failed"
-        in_memory_jobs[job_id]["error"] = str(exc)
+        logger.error("Job %s failed: %r", job_id, exc)
+        job["error"] = str(exc)
+        job["status"] = "failed"
+    finally:
+        job["updated"] = time.time()
+        # the key is only needed while the scan runs
+        scan_data.llm_api_key = None
 
 
 @app.post("/api/v1/scan", status_code=status.HTTP_201_CREATED)
 async def add_scan_task(
     scan_data: CreateScanSchema, request: Request, response: Response
 ):
-    client_ip = request.client.host if request.client else "127.0.0.1"
-    secret_key = request.headers.get("SECRET-KEY", None)
+    client_ip = request.client.host if request.client else "unknown"
 
-    # Allow local browser requests or validate secret key
-    is_local = client_ip in ("127.0.0.1", "localhost", "::1", "testclient")
-    if not is_local and secret_key != auth_secret_key:
+    if not is_authorized(request, auth_secret_key):
         response.status_code = status.HTTP_401_UNAUTHORIZED
         logger.warning("INTRUSION: %s tried to create an unauthorized scan job", client_ip)
         return {"message": "Unauthorized"}
@@ -110,11 +113,12 @@ async def add_scan_task(
         msg["job_id"] = job.id
         logger.info("SUCCESS: %s created Redis scan job - %s", client_ip, job.id)
     else:
-        # Enqueue in in-memory executor
+        prune_in_memory_jobs()
         in_memory_jobs[job_id] = {
             "status": "queued",
             "results": None,
             "error": None,
+            "updated": time.time(),
         }
         executor.submit(_run_in_memory_job, job_id, scan_data)
         logger.info("SUCCESS: %s created In-Memory scan job - %s", client_ip, job_id)
@@ -124,11 +128,7 @@ async def add_scan_task(
 
 @app.get("/api/v1/scan/{job_id}/result")
 async def get_scan_task_result(job_id: str, request: Request, response: Response):
-    client_ip = request.client.host if request.client else "127.0.0.1"
-    secret_key = request.headers.get("SECRET-KEY", None)
-    is_local = client_ip in ("127.0.0.1", "localhost", "::1", "testclient")
-
-    if not is_local and secret_key != auth_secret_key:
+    if not is_authorized(request, auth_secret_key):
         response.status_code = status.HTTP_401_UNAUTHORIZED
         return {"message": "Unauthorized"}
 
@@ -154,13 +154,16 @@ async def get_scan_task_result(job_id: str, request: Request, response: Response
         if scan_results_job and scan_results_job.is_started:
             response.status_code = status.HTTP_202_ACCEPTED
             return {"msg": "Job In Progress", "results": None}
+        elif scan_results_job and scan_results_job.is_queued:
+            response.status_code = status.HTTP_202_ACCEPTED
+            return {"msg": "Job Queued", "results": None}
         elif scan_results_job and scan_results_job.is_finished:
             response.status_code = status.HTTP_200_OK
             return {"msg": "Task Completed", "results": scan_results_job.result}
         elif scan_results_job and scan_results_job.is_failed:
             response.status_code = status.HTTP_200_OK
             return {
-                "msg": "Task Failed. Try Creating Task Again.",
+                "msg": "Task Failed. Check the worker logs and try again.",
                 "results": None,
             }
 

@@ -61,3 +61,27 @@ class TestGarakParser(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestNewerGarakSchema(unittest.TestCase):
+    def test_total_evaluated_key_is_understood(self):
+        import json
+        import os
+        import tempfile
+
+        entry = {
+            'entry_type': 'eval',
+            'probe': 'probes.dan.Dan_11_0',
+            'detector': 'detector.dan.DAN',
+            'passed': 7,
+            'fails': 3,
+            'total_evaluated': 10,
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'r.report.jsonl')
+            with open(path, 'w') as f:
+                f.write(json.dumps(entry) + '\n')
+            parsed = parse_report(path)
+        res = parsed['results'][0]
+        self.assertEqual((res['passed'], res['total'], res['failed']), (7, 10, 3))
+        self.assertTrue(res['vulnerable'])

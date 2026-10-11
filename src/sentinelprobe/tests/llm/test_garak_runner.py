@@ -82,7 +82,9 @@ class TestRunGarak(unittest.TestCase):
                 gr.run_garak(cfg(report_dir=self.tmp.name))
 
     def test_success_uses_path_from_stdout(self):
-        fake = SimpleNamespace(returncode=0, stdout=f'report closed :) {self.report}\n')
+        fake = SimpleNamespace(
+            returncode=0, stdout=f'report closed :) {self.report}\n', stderr=''
+        )
         with patch.object(gr, 'is_garak_installed', return_value=True), patch.object(
             gr.subprocess, 'run', return_value=fake
         ) as run:
@@ -91,7 +93,7 @@ class TestRunGarak(unittest.TestCase):
         self.assertNotIn('shell', run.call_args.kwargs)
 
     def test_nonzero_exit(self):
-        fake = SimpleNamespace(returncode=2, stdout='boom')
+        fake = SimpleNamespace(returncode=2, stdout='boom', stderr='')
         with patch.object(gr, 'is_garak_installed', return_value=True), patch.object(
             gr.subprocess, 'run', return_value=fake
         ):
@@ -118,3 +120,17 @@ class TestRunGarak(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestEnvOverrides(unittest.TestCase):
+    def test_overrides_reach_child_env_not_command_line(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = os.path.join(tmp, 'run.report.jsonl')
+            make_report(report)
+            fake = SimpleNamespace(returncode=0, stdout=f'{report}\n', stderr='')
+            with patch.object(gr, 'is_garak_installed', return_value=True), patch.object(
+                gr.subprocess, 'run', return_value=fake
+            ) as run:
+                gr.run_garak(cfg(report_dir=tmp), env_overrides={'OPENAI_API_KEY': 'sekret'})
+            self.assertEqual(run.call_args.kwargs['env']['OPENAI_API_KEY'], 'sekret')
+            self.assertNotIn('sekret', ' '.join(run.call_args.args[0]))

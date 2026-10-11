@@ -4,8 +4,9 @@ from argparse import ArgumentParser
 from .parsers.openapi import OpenAPIv3Parser
 from .parsers.swagger import SwaggerParser
 from .config_data_handler import validate_config_file_data
-from .tester.handler import generate_and_run_tests
+from .tester.handler import HostUnavailableError, generate_and_run_tests
 from .parsers import create_parser
+from .parsers.parser import InvalidSpecVersion
 from .logger import logger
 from .utils import get_package_version, headers_list_to_dict, read_yaml
 
@@ -125,11 +126,20 @@ def start():
         default=None,
     )
     parser.add_argument(
+        '--no-ssl-verify',
+        dest='ssl_verify',
+        required=False,
+        action='store_false',
+        default=True,
+        help='Disable SSL Verification',
+    )
+    parser.add_argument(
         '-s',
         '--ssl-verify',
         dest='ssl_verify',
         required=False,
         action='store_true',
+        default=True,
         help='Enable SSL Verification',
     )
     parser.add_argument(
@@ -146,6 +156,18 @@ def start():
         default=None,
         required=False,
         help='server/host base url to overwrite from OAS/Swagger file',
+    )
+    parser.add_argument(
+        '--safe',
+        dest='safe_mode',
+        action='store_true',
+        help='only send GET, HEAD and OPTIONS requests (no state-changing methods); overrides --http-methods',
+    )
+    parser.add_argument(
+        '--fail-on-vuln',
+        dest='fail_on_vuln',
+        action='store_true',
+        help='exit with code 2 if any vulnerability is found (for CI pipelines)',
     )
     parser.add_argument(
         '--mode',
@@ -234,6 +256,8 @@ def start():
                 '(garak runs every probe by default, which is slow and can be costly)'
             )
 
+    found_vulns = False
+
     if args.mode in ('api', 'all'):
         # convert req headers str to dict
         headers_dict: dict = headers_list_to_dict(args.headers)
@@ -247,33 +271,49 @@ def start():
         if test_data_config:
             test_data_config = read_yaml(args.test_data_config)
             test_data_config = validate_config_file_data(test_data_config)
+            if test_data_config is False:
+                test_data_config = None
+
+        http_methods = (
+            ['GET', 'HEAD', 'OPTIONS'] if args.safe_mode else args.http_methods
+        )
 
         # parse args and run tests
-        api_parser: SwaggerParser | OpenAPIv3Parser = create_parser(
-            args.fpath, server_url=args.server_url,
-            ssl_verify=args.ssl_verify
-        )
+        try:
+            api_parser: SwaggerParser | OpenAPIv3Parser = create_parser(
+                args.fpath, server_url=args.server_url, ssl_verify=args.ssl_verify
+            )
+            api_results = generate_and_run_tests(
+                api_parser=api_parser,
+                http_methods=http_methods,
+                regex_pattern=args.path_regex_pattern,
+                output_file=args.output_file,
+                output_file_format=args.output_format,
+                req_headers=headers_dict,
+                rate_limit=rate_limit,
+                test_data_config=test_data_config,
+                proxies=args.proxies_list,
+                capture_failed=args.capture_failed,
+                ssl_verify=args.ssl_verify,
+            )
+        except (
+            HostUnavailableError,
+            FileNotFoundError,
+            InvalidSpecVersion,
+            ValueError,
+            OSError,
+        ) as exc:
+            logger.error('API scan failed: %s', exc)
+            sys.exit(1)
 
-        generate_and_run_tests(
-            api_parser=api_parser,
-            http_methods=args.http_methods,
-            regex_pattern=args.path_regex_pattern,
-            output_file=args.output_file,
-            output_file_format=args.output_format,
-            req_headers=headers_dict,
-            rate_limit=rate_limit,
-            test_data_config=test_data_config,
-            proxies=args.proxies_list,
-            capture_failed=args.capture_failed,
-            ssl_verify=args.ssl_verify,
-        )
+        found_vulns = found_vulns or any(r.get('vulnerable') for r in api_results)
 
     if args.mode in ('llm', 'all'):
         from .llm.garak_runner import GarakError
         from .llm.handler import run_llm_scan
 
         try:
-            run_llm_scan(
+            llm_result = run_llm_scan(
                 model_type=args.llm_model_type,
                 model_name=args.llm_model_name,
                 probes=args.llm_probes,
@@ -290,6 +330,12 @@ def start():
         except (GarakError, ValueError) as exc:
             logger.error('LLM scan failed: %s', exc)
             sys.exit(1)
+
+        found_vulns = found_vulns or llm_result['summary']['vulnerable_probes'] > 0
+
+    if args.fail_on_vuln and found_vulns:
+        logger.error('Vulnerabilities found (--fail-on-vuln)')
+        sys.exit(2)
 
 
 if __name__ == '__main__':

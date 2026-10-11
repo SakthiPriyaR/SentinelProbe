@@ -26,8 +26,8 @@ requests = ">=2.31.0"
 api = ["fastapi", "uvicorn", "redis", "rq", "python-dotenv"]
 
 [tool.poetry.urls]
-"Home" = "https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe"
-"Bug Tracker" = "https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe/issues"
+"Home" = "https://github.com/SakthiPriyaR/sentinelprobe"
+"Bug Tracker" = "https://github.com/SakthiPriyaR/sentinelprobe/issues"
 
 
 [tool.poetry.scripts]

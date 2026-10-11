@@ -21,7 +21,9 @@ def create_parser(
                 'server returned status code %d sentinelprobe expects 200 status code',
                 res.status_code,
             )
-            exit(-1)
+            raise ValueError(
+                f'Server returned status code {res.status_code}, sentinelprobe expects 200 status code'
+            )
 
         # A spec served over a url can be JSON or YAML, same as a local file.
         # JSON is a subset of YAML, so safe_load handles both.
@@ -29,11 +31,11 @@ def create_parser(
             spec = yaml_load(res.text)
         except YAMLError:
             logger.error('Failed to parse spec fetched from url as JSON/YAML')
-            exit(-1)
+            raise ValueError('Failed to parse spec fetched from url as JSON/YAML')
 
         if not isinstance(spec, dict):
             logger.error('Spec fetched from url is not a valid JSON/YAML object')
-            exit(-1)
+            raise ValueError('Spec fetched from url is not a valid JSON/YAML object')
 
         fpath_or_url = None  # type: ignore
 
@@ -41,7 +43,7 @@ def create_parser(
         parser = BaseParser(file_or_url=fpath_or_url, spec=spec, server_url=server_url)
     except OSError:
         logger.error('File Not Found')
-        exit(-1)
+        raise FileNotFoundError('File Not Found')
 
     if parser.is_v3:
         return OpenAPIv3Parser(
