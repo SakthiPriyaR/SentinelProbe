@@ -66,14 +66,14 @@ def populate_user_data(actor_data: dict, actor_name: str, tests: list[dict]):
         test['query_params'] = update_values(
             deepcopy(test['query_params']), query_params
         )
-        test['path_params'] += update_values(deepcopy(test['path_params']), path_params)
+        test['path_params'] = update_values(deepcopy(test['path_params']), path_params)
         # for post test processing tests such as broken authentication
         test['test_actor_name'] = actor_name
         if test.get('kwargs', {}).get('headers', {}).items():
-            test['kwargs']['headers'] = dict(
+            test.setdefault('kwargs', {})['headers'] = dict(
                 test['kwargs']['headers'], **request_headers
             )
         else:
-            test['kwargs']['headers'] = request_headers
+            test.setdefault('kwargs', {})['headers'] = request_headers
 
     return tests

@@ -7,14 +7,11 @@ from urllib.parse import urlparse
 
 from aiohttp import ClientSession, ClientTimeout
 from aiolimiter import AsyncLimiter
-from tenacity import retry, stop_after_attempt, retry_if_not_exception_type
 
 import asyncio
 import aiohttp.resolver
 
-aiohttp.resolver.DefaultResolver = aiohttp.resolver.AsyncResolver
-if os_name == 'nt':
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 
 
 class Proxies:
@@ -52,16 +49,28 @@ class Proxies:
         return choice(self.p_list)
 
 
+_SAFE_METHODS = {'GET', 'HEAD', 'OPTIONS'}
+
+
 class AsyncRequests:
     """
     AsyncRequests class helps to send HTTP requests with rate limiting options.
     """
+    _initialized_policy: bool = False
+
+    @classmethod
+    def _setup_event_loop_policy(cls) -> None:
+        if not cls._initialized_policy:
+            aiohttp.resolver.DefaultResolver = aiohttp.resolver.AsyncResolver
+            if os_name == 'nt':
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+            cls._initialized_policy = True
 
     def __init__(
         self,
         rate_limit: float = 50,
         headers: dict | None = None,
-        proxies: list[str] | None = [],
+        proxies: list[str] | None = None,
         allow_redirects: bool = True,
         timeout: float = 60,
         ssl_verify: bool = True,
@@ -79,6 +88,7 @@ class AsyncRequests:
         Returns:
             None
         """
+        self._setup_event_loop_policy()
         self._headers = headers
         self._proxy = Proxies(proxies=proxies)
         self._allow_redirects = allow_redirects
@@ -86,15 +96,6 @@ class AsyncRequests:
         self._timeout = ClientTimeout(total=timeout)
         self._ssl_verify = ssl_verify
 
-    @retry(
-        stop=stop_after_attempt(3),
-        retry=retry_if_not_exception_type(
-            (
-                KeyboardInterrupt,
-                asyncio.exceptions.CancelledError,
-            ),
-        ),
-    )
     async def request(self, url: str, *args, method: str = 'GET', **kwargs) -> dict:
         """Send HTTP requests asynchronously
 
@@ -106,6 +107,22 @@ class AsyncRequests:
         Returns:
             dict: returns request and response data as dict
         """
+        # Only safe methods are retried: re-sending a fuzzed POST/PUT/PATCH/DELETE
+        # would repeat a possibly state-changing request.
+        attempts = 3 if method.upper() in _SAFE_METHODS else 1
+        last_exc: Exception | None = None
+        for attempt in range(attempts):
+            try:
+                return await self._request_once(url, *args, method=method, **kwargs)
+            except (asyncio.CancelledError, KeyboardInterrupt):
+                raise
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                if attempt < attempts - 1:
+                    await asyncio.sleep(0.5 * (2**attempt))
+        raise last_exc  # type: ignore[misc]
+
+    async def _request_once(self, url: str, *args, method: str = 'GET', **kwargs) -> dict:
         async with self._limiter:
             async with ClientSession(
                 headers=self._headers,
@@ -126,7 +143,7 @@ class AsyncRequests:
                         'req_url': str(response.request_info.real_url),
                         'query_url': str(response.url),
                         'req_method': response.request_info.method,
-                        'req_headers': dict(**response.request_info.headers),
+                        'req_headers': dict(response.request_info.headers),
                         'res_redirection': str(response.history),
                         'res_headers': dict(response.headers),
                         'res_body': await response.text(),

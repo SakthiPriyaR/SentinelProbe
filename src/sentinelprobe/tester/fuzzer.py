@@ -134,9 +134,7 @@ def fill_params(params: list[dict], is_v3: bool) -> list[dict]:
             params[index]["value"] = param_value
 
     # delete schema params
-    for param in params:
-        if param.get("schema"):
-            params.remove(param)
+    params = [p for p in params if not p.get("schema")]
 
     for schema_param in schema_params:
         params += schema_param

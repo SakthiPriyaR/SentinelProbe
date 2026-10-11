@@ -539,6 +539,30 @@
             renderCharts(vulns, passed, results);
         }
 
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // maps an LLM (garak) scan result onto the endpoint-style rows used by the dashboard
+        function llmToItems(llm) {
+            if (!llm || !Array.isArray(llm.results)) return [];
+            const model = [(llm.target || {}).model_type, (llm.target || {}).model_name].filter(Boolean).join(':');
+            return llm.results.map(r => ({
+                test_name: 'LLM probe: ' + r.probe,
+                url: model,
+                endpoint: r.detector,
+                method: 'LLM',
+                vulnerable: !!r.vulnerable,
+                vuln_details: r.vulnerable
+                    ? `${r.failed} of ${r.total} attempts succeeded (${(r.fail_rate * 100).toFixed(1)}%)`
+                    : 'No successful attacks detected',
+                response_body: (r.examples || []).map(e => `prompt: ${e.prompt}\noutput: ${e.output}`).join('\n---\n'),
+                response_status_code: '-',
+                data_leak: {}
+            }));
+        }
+
         function renderEndpointList(results) {
             const container = document.getElementById('endpoint-list-container');
             container.innerHTML = '';
@@ -563,15 +587,15 @@
                 div.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="badge-method method-${method}">${method}</span>
-                            <span class="font-mono small fw-semibold text-truncate text-white" style="max-width: 200px;">${endpoint}</span>
+                            <span class="badge-method method-${escapeHtml(method)}">${escapeHtml(method)}</span>
+                            <span class="font-mono small fw-semibold text-truncate text-white" style="max-width: 200px;">${escapeHtml(endpoint)}</span>
                         </div>
                         <div>
                             ${isVuln ? '<span class="badge bg-danger">VULN</span>' : '<span class="badge bg-success">PASS</span>'}
                             ${isLeak ? '<span class="badge bg-warning ms-1 text-dark">LEAK</span>' : ''}
                         </div>
                     </div>
-                    <div class="small text-secondary text-truncate">${testName}</div>
+                    <div class="small text-secondary text-truncate">${escapeHtml(testName)}</div>
                 `;
                 container.appendChild(div);
             });
@@ -798,7 +822,9 @@
                             statusText.innerText = 'Scan Complete! Loading results into dashboard...';
                             let items = pollData.results;
                             if (items.scan_type === 'combined') {
-                                items = items.api_results;
+                                items = (items.api_results || []).concat(llmToItems(items.llm_results));
+                            } else if (!Array.isArray(items)) {
+                                items = llmToItems(items);
                             }
                             loadScanData(items);
                             setTimeout(() => {

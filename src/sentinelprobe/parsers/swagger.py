@@ -97,7 +97,7 @@ class SwaggerParser(BaseParser):
 
             for http_method in paths.get(path, {}).keys():
                 # consider only http methods
-                if http_method not in ['get', 'put', 'post', 'delete', 'options']:
+                if http_method not in ['get', 'put', 'post', 'delete', 'options', 'patch']:
                     continue
 
                 # below var contains overall params

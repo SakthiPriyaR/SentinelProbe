@@ -111,7 +111,7 @@ class TestRunner:
         """
         url = test_task.get('url')
         http_method = test_task.get('method')
-        args = test_task.get('args')
+        args = test_task.get('args') or ()
         kwargs = test_task.get('kwargs', {})
         body_params = test_task.get('body_params')
         query_params = test_task.get('query_params')
@@ -127,7 +127,7 @@ class TestRunner:
             )
 
         test_result = test_task
-        if self.http_methods and str(http_method).upper() not in self.http_methods:
+        if self.http_methods and str(http_method).upper() not in [m.upper() for m in self.http_methods]:
             test_result['request_headers'] = []
             test_result['response_headers'] = []
             test_result['response_body'] = f"{str(http_method).upper()} request was not sent"
@@ -160,7 +160,7 @@ class TestRunner:
 
             logger.debug('Exception Debug Data:', exc_info=exc_info())
             logger.debug(format_exc())
-            logger.debug(locals())
+            logger.debug('Request completed for %s %s', http_method, url)
             logger.error('Unable to send request due to error: %s', e)
 
         # generate curl command for reproducing result
@@ -196,7 +196,7 @@ class TestRunner:
             CancelledError,
         ):
             logger.error('[!] User Interruption Detected!')
-            exit(-1)
+            raise
 
         except Exception as e:
             logger.error(

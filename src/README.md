@@ -60,14 +60,14 @@ jobs:
           url: ${{ secrets.url }}
 
       - name: "SentinelProbe CICD Scanner"
-        uses: YOUR-GITHUB-USERNAME/sentinelprobe@main # YOUR-GITHUB-USERNAME/sentinelprobe@v0.1.0
+        uses: SakthiPriyaR/sentinelprobe@main # SakthiPriyaR/sentinelprobe@v0.1.0
         with:
           file: /tmp/swagger.json # or ${{ secrets.url }}
           rate_limit: 120
           artifact_retention_days: 1
 ```
 
-> Prefer locking action to specific version `YOUR-GITHUB-USERNAME/sentinelprobe@v0.1.0` instead of using `YOUR-GITHUB-USERNAME/sentinelprobe@main` and bump SentinelProbe action version after testing.
+> Prefer locking action to specific version `SakthiPriyaR/sentinelprobe@v0.1.0` instead of using `SakthiPriyaR/sentinelprobe@main` and bump SentinelProbe action version after testing.
 
 ## PyPi Downloads
 
@@ -90,7 +90,7 @@ The disclaimer advises users to use the open-source project for ethical and legi
 - Clone and install locally:
 
     ```bash
-    git clone https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe.git
+    git clone https://github.com/SakthiPriyaR/sentinelprobe.git
     cd sentinelprobe/src
     pip install .          # only cli tool
     pip install ".[api]"    # cli + api server
@@ -99,7 +99,7 @@ The disclaimer advises users to use the open-source project for ethical and legi
 - Or install directly using pip from git:
 
     ```bash
-    python3 -m pip install git+https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe.git#subdirectory=src
+    python3 -m pip install git+https://github.com/SakthiPriyaR/sentinelprobe.git#subdirectory=src
     ```
 
 ### Using Containers
@@ -141,7 +141,7 @@ The disclaimer advises users to use the open-source project for ethical and legi
 - clone the repository to your machine
 
   ```bash
-  git clone https://github.com/YOUR-GITHUB-USERNAME/sentinelprobe.git
+  git clone https://github.com/SakthiPriyaR/sentinelprobe.git
   ```
 
 - Change directory

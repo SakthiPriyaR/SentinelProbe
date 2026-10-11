@@ -1,35 +1,38 @@
-version: '3'
 services:
   sentinelprobe-redis:
-    image: redis:latest
-    ports:
-      - "6379:6379"
+    image: redis:7-alpine
+    # no published port: only the other services on this network can reach it
     networks:
       - sentinelprobe-network
 
   sentinelprobe-api:
-    image: YOUR-DOCKERHUB-USERNAME/sentinelprobe-base:latest
+    image: sentinelprobe/sentinelprobe-base:latest
     command: ["python", "-m", "sentinelprobe.api"]
     ports:
-      - "8000:8000"
+      # bound to the host's loopback only; put a TLS reverse proxy in front for remote use
+      - "127.0.0.1:8000:8000"
     networks:
       - sentinelprobe-network
     environment:
       - REDIS_HOST=sentinelprobe-redis
       - REDIS_PORT=6379
+      - SENTINELPROBE_HOST=0.0.0.0
+      # required: clients reaching the container are not "local", so they must send
+      # this value in the SECRET-KEY header (set it in .env, see .env.sample)
+      - AUTH_SECRET_KEY=${AUTH_SECRET_KEY:?set AUTH_SECRET_KEY in .env}
     depends_on:
-      - sentinelprobe-redis  # Wait for sentinelprobe-redis to start before starting this container
+      - sentinelprobe-redis
 
   sentinelprobe-api-worker:
-    image: YOUR-DOCKERHUB-USERNAME/sentinelprobe-base:latest
-    command: ["rq", "worker","sentinelprobe_task_queue"]
+    image: sentinelprobe/sentinelprobe-base:latest
+    command: ["rq", "worker", "sentinelprobe_task_queue"]
     networks:
       - sentinelprobe-network
     environment:
       - REDIS_HOST=sentinelprobe-redis
       - REDIS_PORT=6379
     depends_on:
-      - sentinelprobe-redis  # Wait for sentinelprobe-redis to start before starting this container
+      - sentinelprobe-redis
 
 networks:
   sentinelprobe-network:

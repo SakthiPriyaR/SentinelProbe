@@ -14,11 +14,17 @@ from ..logger import logger, console
 # create tester obj
 test_generator = TestGenerator()
 
+DEFAULT_HTTP_METHODS = ('GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH')
+
+
+class HostUnavailableError(Exception):
+    """Raised when the scan target cannot be reached."""
+
 
 # Note: redirects are allowed by default making it easier for pentesters/researchers
 def generate_and_run_tests(
     api_parser: SwaggerParser | OpenAPIv3Parser,
-    http_methods: list,
+    http_methods: list | None = None,
     regex_pattern: str | None = None,
     output_file: str | None = None,
     output_file_format: str | None = None,
@@ -54,15 +60,22 @@ def generate_and_run_tests(
         tests in the report (default: False).
         remove_unused_data: A boolean indicating whether to remove
         unused data (default: True).
+        http_methods: HTTP methods allowed while scanning (default: all).
 
     Returns:
         A list of test results.
+
+    Raises:
+        HostUnavailableError: if the target host cannot be reached.
     """
+    if http_methods is None:
+        http_methods = list(DEFAULT_HTTP_METHODS)
+
     if not is_host_up(openapi_parser=api_parser, ssl_verify=ssl_verify):
         logger.error(
             'Stopping tests due to unavailability of host: %s', api_parser.host
         )
-        return
+        raise HostUnavailableError(f'host {api_parser.host} is unavailable')
 
     logger.info('Host %s is up', api_parser.host)
 
@@ -308,8 +321,8 @@ def generate_and_run_tests(
                 result.get('malicious_payload', [])
             )
 
-    # save file to output if output flag is present
-    if output_file_format != 'table':
+    # save file to output if an output file or a non-table format is requested
+    if output_file or output_file_format not in (None, 'table'):
         ReportGenerator.generate_report(
             results=results,
             report_format=output_file_format,

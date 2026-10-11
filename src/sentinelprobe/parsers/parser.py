@@ -55,10 +55,9 @@ class BaseParser:
         """Returns list of endpoint paths along with HTTP methods allowed"""
         endpoints = []
 
+        valid_methods = {'get', 'put', 'post', 'delete', 'options', 'patch', 'head', 'trace'}
         for endpoint in self.specification.get("paths", {}).keys():
-            methods = list(self.specification["paths"][endpoint].keys())
-            if "parameters" in methods:
-                methods.remove("parameters")
+            methods = [m for m in self.specification["paths"][endpoint].keys() if m.lower() in valid_methods]
             endpoints.append((endpoint, methods))
 
         return endpoints

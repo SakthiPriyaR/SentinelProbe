@@ -23,12 +23,19 @@ def run_llm_scan(
     output_file: str | None = None,
     output_format: str | None = None,
     mode: str = 'llm',
+    env_overrides: dict[str, str] | None = None,
+    emit_report: bool = True,
 ) -> dict:
     """Runs a garak scan against an LLM and reports the findings.
 
     Only scan models you own or are explicitly authorized to test. garak sends
     many adversarial prompts, which can incur API costs and trigger provider
     abuse monitoring.
+
+    Args:
+        env_overrides: extra environment variables for the garak process only
+            (for example a provider API key); never logged.
+        emit_report: when False nothing is printed or written (API usage).
 
     Returns:
         dict with ``target``, ``summary``, ``results`` and ``garak_report``.
@@ -44,7 +51,7 @@ def run_llm_scan(
         timeout=timeout,
         report_dir=report_dir,
     )
-    report_path, _stdout = run_garak(cfg)
+    report_path, _stdout = run_garak(cfg, env_overrides=env_overrides)
     parsed = parse_report(report_path)
 
     result = {
@@ -56,11 +63,12 @@ def run_llm_scan(
         'garak_report': str(report_path),
     }
 
-    out_path = derive_output_path(output_file, mode)
-    fmt = resolve_format(out_path, output_format)
-    save_or_print(format_report(result, fmt), out_path)
-    if out_path:
-        logger.info('Wrote LLM scan report to %s', out_path)
+    if emit_report:
+        out_path = derive_output_path(output_file, mode)
+        fmt = resolve_format(out_path, output_format)
+        save_or_print(format_report(result, fmt), out_path)
+        if out_path:
+            logger.info('Wrote LLM scan report to %s', out_path)
     logger.info(
         'LLM scan done: %d/%d probes vulnerable. Raw garak report: %s',
         result['summary']['vulnerable_probes'],

@@ -63,7 +63,8 @@ def is_host_up(openapi_parser: SwaggerParser | OpenAPIv3Parser, ssl_verify: bool
         conn.request('GET', '/')
         res = conn.getresponse()
         logger.info('Host returned status code: %d', res.status)
-        return res.status in range(200, 499)
+        # any HTTP response (even 4xx/5xx on '/') proves the host is reachable
+        return True
     except Exception as e:
         logger.error(
             'Unable to connect to host %s:%s due to error: %s', host, port, repr(e)
@@ -100,7 +101,7 @@ def run_test(
         CancelledError,
     ):
         logger.error('[!] User Interruption Detected!')
-        exit(-1)
+        raise
 
     except Exception as e:
         logger.error(

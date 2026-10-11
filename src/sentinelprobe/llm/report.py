@@ -45,6 +45,7 @@ def to_yaml(result: dict) -> str:
 
 def to_table(result: dict):
     """Returns a rich Table of the findings."""
+    from rich.markup import escape
     from rich.table import Table
 
     table = Table(title='SentinelProbe LLM scan (garak)', show_lines=False)
@@ -54,8 +55,8 @@ def to_table(result: dict):
         verdict = '[red]VULNERABLE[/red]' if r['vulnerable'] else '[green]ok[/green]'
         table.add_row(
             # rich markup in names would be interpreted, so escape brackets
-            r['probe'].replace('[', '\\['),
-            r['detector'].replace('[', '\\['),
+            escape(r['probe']),
+            escape(r['detector']),
             f"{r['passed']} / {r['total']}",
             f"{r['fail_rate'] * 100:.1f}%",
             verdict,

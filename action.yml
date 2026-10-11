@@ -28,7 +28,11 @@ runs:
           python-version: '3.12'
 
       - name: Install SentinelProbe
-        run: pip install -U sentinelprobe
+        # installed from the action's own checkout (not PyPI) so the code that
+        # runs is exactly the pinned action version
+        env:
+          ACTION_PATH: ${{ github.action_path }}
+        run: pip install "$ACTION_PATH/src"
         shell: bash
 
       - name: Run Scanner
@@ -38,7 +42,7 @@ runs:
 
         run: |
           mkdir -p ./sentinelprobe-tmp/
-          sentinelprobe --file $scanner_file --rate-limit $scanner_rate_limit -of json -o ./sentinelprobe-tmp/results.json --capture-failed -H 'User-Agent: github-action-sentinelprobe'
+          sentinelprobe --file "$scanner_file" --rate-limit "$scanner_rate_limit" -of json -o ./sentinelprobe-tmp/results.json --capture-failed -H 'User-Agent: github-action-sentinelprobe'
         shell: bash
 
       - name: Upload Scan Results to Artifacts
