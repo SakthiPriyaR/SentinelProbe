@@ -195,3 +195,6 @@ specs.json
 swagger.yaml
 swagger.json
 *.json
+## generated scan reports (do not commit)
+/report.html
+/test_report.html
